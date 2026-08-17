@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SiliconVision - Semiconductor Image Restoration Workbench</title>
+  <meta name="description" content="AI-Powered Semiconductor Image Restoration and 2x Super-Resolution for KLA SemiCon AI Hackathon">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="2" width="20" height="20" rx="4" />
+          <path d="M7 2v20M17 2v20M2 7h20M2 17h20" />
+          <circle cx="12" cy="12" r="3" fill="#00f0ff" />
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">SILICON<span>VISION</span></div>
+        <div class="brand-tagline">"From Noise to Precision" • KLA SemiCon Metrology AI</div>
+      </div>
+    </div>
+
+    <!-- Header Status Badges -->
+    <div class="header-telemetry">
+      <div class="status-pill status-ready" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="modelStatusText">Model Online</span>
+      </div>
+      <div class="status-pill device-pill" id="devicePill">
+        <span class="device-icon">⚡</span>
+        <span id="deviceText">DEVICE: CPU</span>
+      </div>
+      <div class="status-pill model-pill">
+        <span class="param-badge">18.21M Params</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="workbench-tabs">
+    <button class="tab-btn active" id="tabWorkbench" onclick="switchTab('workbench')">
+      <span class="tab-icon">🔬</span> Restoration Workbench
+    </button>
+    <button class="tab-btn" id="tabValidation" onclick="switchTab('validation')">
+      <span class="tab-icon">📊</span> Metrology Validation Lab (with GT)
+    </button>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="workbench-container">
+
+    <!-- ============================================================ -->
+    <!-- TAB 1: RESTORATION WORKBENCH                                 -->
+    <!-- ============================================================ -->
+    <div class="tab-view active" id="viewWorkbench">
+      
+      <!-- Quick Demo Selector Banner -->
+      <section class="demo-banner">
+        <div class="demo-header">
+          <span class="demo-title">⚡ Quick Demo Samples (Official KLA Metrology Data):</span>
+          <span class="demo-sub">Click a sample to load and inspect high-resolution semiconductor structures:</span>
+        </div>
+        <div class="demo-cards-grid" id="demoCardsContainer">
+          <!-- Populated by JavaScript -->
+          <div class="demo-card-loading">Loading KLA demo samples...</div>
+        </div>
+      </section>
+
+      <!-- 3-Column Workbench Grid -->
+      <div class="workbench-grid">
+
+        <!-- Column 1: Input Inspection (Large High-Resolution Area) -->
+        <div class="wb-panel input-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span class="panel-icon">📥</span> Input Inspection
+            </div>
+            <div class="panel-actions">
+              <span class="res-tag">128 × 128 NoisyLR</span>
+            </div>
+          </div>
+
+          <!-- Dropzone -->
+          <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" accept=".npy,.png,.jpg,.jpeg,.tif,.tiff" style="display:none;" onchange="handleFileSelected(event)">
+            <div class="dropzone-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+            </div>
+            <div class="dropzone-text">
+              <strong>Drag & Drop NoisyLR file</strong> or <span class="browse-link">browse</span>
+            </div>
+            <div class="dropzone-hint">Supports .npy (raw float32), .png, .jpg, .tif</div>
+          </div>
+
+          <!-- Large High-Resolution Input Preview Area -->
+          <div class="input-preview-card" id="inputPreviewCard" style="display:none;">
+            
+            <!-- Toolbar for Input Viewport -->
+            <div class="viewer-toolbar">
+              <div class="zoom-controls">
+                <span class="ctrl-label">Zoom:</span>
+                <button class="zoom-btn active" id="inputZoom1" onclick="setInputZoom(1)">1×</button>
+                <button class="zoom-btn" id="inputZoom2" onclick="setInputZoom(2)">2×</button>
+                <button class="zoom-btn" id="inputZoom4" onclick="setInputZoom(4)">4×</button>
+              </div>
+              <div class="tool-actions">
+                <button class="action-btn" onclick="toggleFullscreen('inputViewportWrap')" title="Toggle Fullscreen">⛶ Fullscreen</button>
+              </div>
+            </div>
+
+            <!-- Large Viewport -->
+            <div class="large-viewport-wrap" id="inputViewportWrap">
+              <div class="viewport-inner" id="inputViewportInner">
+                <img id="inputImgThumb" src="" alt="NoisyLR Preview" class="high-res-display">
+              </div>
+              <div class="thumb-badge">NoisyLR Input (128×128 Matched Scale)</div>
+            </div>
+
+            <!-- Signal Statistics -->
+            <div class="stats-grid" id="inputStatsGrid">
+              <div class="stat-box">
+                <span class="stat-lbl">Dimensions</span>
+                <span class="stat-val" id="statDim">128 × 128</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">Data Type</span>
+                <span class="stat-val" id="statDtype">float32</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">Min Value</span>
+                <span class="stat-val" id="statMin">-0.245</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">Max Value</span>
+                <span class="stat-val" id="statMax">+2.081</span>
+              </div>
+            </div>
+
+            <!-- Speckle Overflow Alert -->
+            <div class="overflow-badge" id="overflowAlert">
+              <span class="alert-icon">⚠️</span>
+              <span>Speckle Outlier Range ($V < 0.0$ or $V > 1.0$): Handled by Robust Dynamic Normalization</span>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <button class="btn-restore" id="btnRestore" onclick="executeRestoration()" disabled>
+            <span class="btn-icon">⚡</span> RUN RESTORATION
+          </button>
+        </div>
+
+        <!-- Column 2: Pipeline Telemetry -->
+        <div class="wb-panel pipeline-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span class="panel-icon">⚙️</span> Processing Pipeline
+            </div>
+            <span class="status-indicator" id="pipelineStatus">IDLE</span>
+          </div>
+
+          <div class="pipeline-flow">
+            <!-- Stage 1 -->
+            <div class="pipe-node" id="stage1">
+              <div class="node-indicator"><span class="node-num">1</span></div>
+              <div class="node-content">
+                <div class="node-title">Signal Ingestion</div>
+                <div class="node-desc">Load $128 \times 128$ float32 sensor array</div>
+              </div>
+              <div class="node-time" id="timeStage1">--</div>
+            </div>
+
+            <div class="pipe-connector" id="conn1"></div>
+
+            <!-- Stage 2 -->
+            <div class="pipe-node" id="stage2">
+              <div class="node-indicator"><span class="node-num">2</span></div>
+              <div class="node-content">
+                <div class="node-title">Robust Quantile Calibration</div>
+                <div class="node-desc">Normalize dynamic range & suppress speckle bursts</div>
+              </div>
+              <div class="node-time" id="timeStage2">--</div>
+            </div>
+
+            <div class="pipe-connector" id="conn2"></div>
+
+            <!-- Stage 3 -->
+            <div class="pipe-node" id="stage3">
+              <div class="node-indicator"><span class="node-num">3</span></div>
+              <div class="node-content">
+                <div class="node-title">NAFNet + 2D FFT Attention</div>
+                <div class="node-desc">18.21M weight forward pass & frequency spectral filtering</div>
+              </div>
+              <div class="node-time" id="timeStage3">--</div>
+            </div>
+
+            <div class="pipe-connector" id="conn3"></div>
+
+            <!-- Stage 4 -->
+            <div class="pipe-node" id="stage4">
+              <div class="node-indicator"><span class="node-num">4</span></div>
+              <div class="node-content">
+                <div class="node-title">2× PixelShuffle Super-Resolution</div>
+                <div class="node-desc">Sub-pixel upsampling $128 \to 256$ resolution</div>
+              </div>
+              <div class="node-time" id="timeStage4">--</div>
+            </div>
+
+            <div class="pipe-connector" id="conn4"></div>
+
+            <!-- Stage 5 -->
+            <div class="pipe-node" id="stage5">
+              <div class="node-indicator"><span class="node-num">5</span></div>
+              <div class="node-content">
+                <div class="node-title">Verification & Export</div>
+                <div class="node-desc">Clamp to $[0, 1]$, verify 0 NaN/Inf, cache NPY array</div>
+              </div>
+              <div class="node-time" id="timeStage5">--</div>
+            </div>
+          </div>
+
+          <!-- Real-Time Latency Gauge -->
+          <div class="latency-card">
+            <div class="latency-row">
+              <span>Neural Inference Time:</span>
+              <span class="latency-val" id="latencyInference">-- ms</span>
+            </div>
+            <div class="latency-row">
+              <span>End-to-End Pipeline:</span>
+              <span class="latency-val" id="latencyTotal">-- ms</span>
+            </div>
+            <div class="latency-row">
+              <span>Throughput:</span>
+              <span class="latency-val" id="latencyFPS">-- FPS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 3: Restoration Result (High-Resolution Zoom & Metrology Inspection) -->
+        <div class="wb-panel result-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span class="panel-icon">✨</span> Restoration Result
+            </div>
+            <div class="view-toggles">
+              <button class="toggle-btn active" id="btnSplitView" onclick="setComparisonMode('split')">Split Slider</button>
+              <button class="toggle-btn" id="btnSideView" onclick="setComparisonMode('side')">Side-by-Side</button>
+            </div>
+          </div>
+
+          <!-- Empty Placeholder -->
+          <div class="result-placeholder" id="resultPlaceholder">
+            <div class="placeholder-icon">🔍</div>
+            <div class="placeholder-text">Upload an image or select a Demo Sample to inspect high-resolution AI restoration.</div>
+          </div>
+
+          <!-- Active Comparison Viewer -->
+          <div class="result-viewer" id="resultViewer" style="display:none;">
+
+            <!-- Inspection Toolbar -->
+            <div class="viewer-toolbar">
+              <div class="zoom-controls">
+                <span class="ctrl-label">Zoom Level:</span>
+                <button class="zoom-btn active" id="resZoom1" onclick="setResultZoom(1)">1×</button>
+                <button class="zoom-btn" id="resZoom2" onclick="setResultZoom(2)">2×</button>
+                <button class="zoom-btn" id="resZoom4" onclick="setResultZoom(4)">4×</button>
+              </div>
+              <div class="tool-actions">
+                <button class="action-btn" onclick="toggleFullscreen('mainResultContainer')" title="Toggle Fullscreen">⛶ Fullscreen</button>
+              </div>
+            </div>
+
+            <div class="main-result-container" id="mainResultContainer">
+
+              <!-- Mode A: Split Comparison Slider (Matched 1:1 Scale) -->
+              <div class="split-slider-container" id="splitSliderContainer">
+                <div class="zoom-pan-layer" id="sliderZoomLayer">
+                  <!-- Before (Underneath) -->
+                  <div class="slider-img-wrap before-wrap">
+                    <img id="splitImgBefore" src="" alt="Degraded NoisyLR" class="high-res-display">
+                    <span class="slider-badge badge-left">BEFORE (128×128 Degraded)</span>
+                  </div>
+                  <!-- After (Clipped on top) -->
+                  <div class="slider-img-wrap after-wrap" id="splitAfterWrap">
+                    <img id="splitImgAfter" src="" alt="Restored High-Res" class="high-res-display">
+                    <span class="slider-badge badge-right">AFTER (256×256 SiliconVision Restored)</span>
+                  </div>
+                </div>
+
+                <!-- Drag Divider Bar -->
+                <div class="slider-handle" id="sliderHandle">
+                  <div class="handle-line"></div>
+                  <div class="handle-button">↔</div>
+                  <div class="handle-line"></div>
+                </div>
+              </div>
+
+              <!-- Mode B: Side-by-Side View -->
+              <div class="side-by-side-container" id="sideContainer" style="display:none;">
+                <div class="side-box">
+                  <div class="side-header">NoisyLR Input ($128 \times 128$)</div>
+                  <div class="side-img-wrap"><img id="sideImgBefore" src="" alt="NoisyLR" class="high-res-display"></div>
+                </div>
+                <div class="side-box">
+                  <div class="side-header">Restored Output ($256 \times 256$)</div>
+                  <div class="side-img-wrap"><img id="sideImgAfter" src="" alt="Restored" class="high-res-display"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Download Action Buttons -->
+            <div class="download-bar">
+              <button class="btn-download btn-png" id="btnDownloadPng" onclick="downloadRestored('png')">
+                <span>📥</span> Download Clean PNG
+              </button>
+              <button class="btn-download btn-npy" id="btnDownloadNpy" onclick="downloadRestored('npy')">
+                <span>💾</span> Download Raw Float32 NPY
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 2: METROLOGY VALIDATION LAB (WITH GT)                    -->
+    <!-- ============================================================ -->
+    <div class="tab-view" id="viewValidation" style="display:none;">
+      
+      <div class="val-header-card">
+        <div class="val-title">📊 Metrology Validation & Benchmark Suite</div>
+        <div class="val-desc">
+          Upload a paired degraded image ($\text{NoisyLR}$, $128 \times 128$) alongside its Ground Truth reference ($\text{GT}$, $256 \times 256$) to quantitatively measure <strong>Peak Signal-to-Noise Ratio (PSNR)</strong> and <strong>Structural Similarity Index (SSIM)</strong>.
+        </div>
+      </div>
+
+      <div class="val-grid">
+        <!-- Input Pair Upload Box -->
+        <div class="wb-panel val-input-panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="panel-icon">📁</span> Select Validation Pair</div>
+          </div>
+
+          <div class="val-drop-row">
+            <div class="val-drop-card" onclick="document.getElementById('valLrInput').click()">
+              <input type="file" id="valLrInput" accept=".npy,.png" style="display:none;" onchange="handleValLrSelected(event)">
+              <div class="val-drop-title">1. NoisyLR Input ($128 \times 128$)</div>
+              <div class="val-drop-sub" id="valLrName">Click to choose .npy/.png</div>
+              <div class="val-thumb-wrap" id="valLrThumbWrap" style="display:none;">
+                <img id="valLrImg" src="" alt="NoisyLR Preview" class="high-res-display">
+              </div>
+            </div>
+
+            <div class="val-drop-card" onclick="document.getElementById('valGtInput').click()">
+              <input type="file" id="valGtInput" accept=".npy,.png" style="display:none;" onchange="handleValGtSelected(event)">
+              <div class="val-drop-title">2. Ground Truth ($256 \times 256$)</div>
+              <div class="val-drop-sub" id="valGtName">Click to choose .npy/.png</div>
+              <div class="val-thumb-wrap" id="valGtThumbWrap" style="display:none;">
+                <img id="valGtImg" src="" alt="GT Preview" class="high-res-display">
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Test with Preloaded Demo Pair -->
+          <div class="val-preset-bar">
+            <span>Or load official validation sample:</span>
+            <div class="preset-btns">
+              <button class="preset-btn" onclick="loadValPreset('sample_01')">Grating Tracks (Sample 01)</button>
+              <button class="preset-btn" onclick="loadValPreset('sample_02')">Contact Holes (Sample 02)</button>
+              <button class="preset-btn" onclick="loadValPreset('sample_03')">FinFET Gates (Sample 03)</button>
+            </div>
+          </div>
+
+          <button class="btn-restore" id="btnValEvaluate" onclick="executeEvaluation()" disabled>
+            <span>📈</span> RUN METROLOGY EVALUATION
+          </button>
+        </div>
+
+        <!-- Metric Output Results -->
+        <div class="wb-panel val-results-panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="panel-icon">🏆</span> Quantitative Metrology Scorecard</div>
+            <span class="badge-verif">Mathematically Verified</span>
+          </div>
+
+          <!-- Score Cards -->
+          <div class="metric-scorecards">
+            <div class="scorecard score-psnr">
+              <div class="score-label">Peak Signal-to-Noise Ratio (PSNR)</div>
+              <div class="score-value" id="valPsnrValue">-- dB</div>
+              <div class="score-quality" id="valPsnrQuality">Awaiting Evaluation</div>
+            </div>
+            <div class="scorecard score-ssim">
+              <div class="score-label">Structural Similarity Index (SSIM)</div>
+              <div class="score-value" id="valSsimValue">--</div>
+              <div class="score-quality" id="valSsimQuality">Awaiting Evaluation</div>
+            </div>
+          </div>
+
+          <!-- 3-Way Visual Comparison Strip -->
+          <div class="three-way-container" id="threeWayContainer" style="display:none;">
+            <div class="three-box">
+              <div class="three-title">1. NoisyLR ($128 \times 128$)</div>
+              <div class="three-img-wrap"><img id="triImgLr" src="" alt="Input" class="high-res-display"></div>
+            </div>
+            <div class="three-box">
+              <div class="three-title">2. Ground Truth ($256 \times 256$)</div>
+              <div class="three-img-wrap"><img id="triImgGt" src="" alt="GT" class="high-res-display"></div>
+            </div>
+            <div class="three-box highlighted-box">
+              <div class="three-title">3. SiliconVision Restored ($256 \times 256$)</div>
+              <div class="three-img-wrap"><img id="triImgRestored" src="" alt="Restored" class="high-res-display"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Bottom Telemetry Bar -->
+  <footer class="app-footer">
+    <div class="footer-item">
+      <span class="f-lbl">MODEL:</span>
+      <span class="f-val">BaselineSemiconNet (NAFNet + 2D FFT SR)</span>
+    </div>
+    <div class="footer-item">
+      <span class="f-lbl">WEIGHTS:</span>
+      <span class="f-val">best_model.pth (18.21M)</span>
+    </div>
+    <div class="footer-item">
+      <span class="f-lbl">BENCHMARK:</span>
+      <span class="f-val">23.11 dB PSNR • 0.9269 SSIM</span>
+    </div>
+    <div class="footer-item">
+      <span class="f-lbl">CHALLENGE:</span>
+      <span class="f-val">KLA SemiCon AI Hackathon (PS-01)</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
