@@ -1,7 +1,7 @@
 # SiliconVision
 
 > **AI-Powered Semiconductor Image Restoration & Metrology Workbench**  
-> *Joint Denoising, Deblurring, and $2\times$ Super-Resolution Reconstruction for High-Precision Nanofabrication Metrology*  
+> *Joint Denoising, Deblurring, and $2\times$ Super-Resolution Reconstruction for Semiconductor Nanofabrication Metrology*  
 > **KLA SemiCon AI Hackathon (Problem Statement PS-01)**
 
 ---
@@ -12,7 +12,7 @@
 
 ## 1. Problem Statement
 
-In advanced semiconductor metrology and defect inspection, optical inspection systems face severe image degradation:
+In semiconductor nanofabrication and defect metrology, optical inspection systems face severe image degradation caused by:
 
 * **Speckle Noise Bursts**: Multiplicative coherent noise causing sensor pixel values to extend beyond normal $[0, 1]$ dynamic bounds (ranging from $-0.28$ to $+2.16$).
 * **Additive Gaussian Sensor Noise**: Thermal and readout noise corrupting high-frequency edge transitions.
@@ -24,7 +24,7 @@ In advanced semiconductor metrology and defect inspection, optical inspection sy
 
 ## 2. Solution Overview
 
-**SiliconVision** pairs a deep neural network with an interactive metrology analysis workbench:
+**SiliconVision** pairs a deep learning restoration model with an interactive metrology analysis workbench:
 
 1. **Robust Quantile Normalization**: Adapts to extreme dynamic range outliers without premature clipping.
 2. **NAFNet Spectral Attention Backbone**: Employs non-linear activation-free gating with 2D Fast Fourier Transform (FFT) spectral filtering to reconstruct critical transistor line grating tracks and contact hole arrays.
@@ -33,26 +33,7 @@ In advanced semiconductor metrology and defect inspection, optical inspection sy
 
 ---
 
-## 3. System Architecture
-
-```
-                                      SILICONVISION PIPELINE
-                                      
-    +-----------------------+         +----------------------------+         +-------------------------------+
-    |  NoisyLR Sensor Array |  ====>  | Robust Dynamic Calibration |  ====>  | NAFNet + 2D FFT Bottleneck    |
-    |  (128 x 128 float32)  |         | (Quantile Outlier Scaler)  |         | (18.21M Learned Parameters)   |
-    +-----------------------+         +----------------------------+         +-------------------------------+
-                                                                                             ||
-                                                                                             \/
-    +-----------------------+         +----------------------------+         +-------------------------------+
-    | Verified Metrology    |  <====  | Float32 Signal Clamping    |  <====  | 2x Sub-Pixel PixelShuffle     |
-    | Output (256 x 256)    |         | (Range [0.0, 1.0], 0 NaN)  |         | (Upscaling 128 -> 256 Res)    |
-    +-----------------------+         +----------------------------+         +-------------------------------+
-```
-
----
-
-## 4. Dataset Organization
+## 3. Dataset Organization
 
 * **Official Dataset Scale**: 3,200 training pairs (`NoisyLR` and `GT`) and 400 test images (`Test_NoisyLR`).
 * **Immutable Partition Manifest**: [`data/splits/split_indices.json`](data/splits/split_indices.json) (`seed = 42`):
@@ -63,7 +44,7 @@ In advanced semiconductor metrology and defect inspection, optical inspection sy
 
 ---
 
-## 5. Model Architecture (`models/model.py`)
+## 4. Model Architecture (`models/model.py`)
 
 * **Model Class**: `BaselineSemiconNet` (aliased as `SiliconVisionRestorationNet`)
 * **Total Parameters**: **18,211,009 (18.21M)**
@@ -76,16 +57,17 @@ In advanced semiconductor metrology and defect inspection, optical inspection sy
 
 ---
 
-## 6. Training Pipeline (`train.py`)
+## 5. Training Configuration (`train.py`)
 
 * **Optimizer**: AdamW ($\beta_1=0.9, \beta_2=0.999$, weight decay $= 10^{-4}$).
 * **Learning Rate Schedule**: Cosine Annealing ($10^{-4} \to 10^{-6}$).
 * **Batch Size**: 8 (with paired random patch crops $64 \times 64 \to 128 \times 128$).
 * **Data Augmentation**: Paired random horizontal/vertical flips and $90^\circ$ orthogonal rotations.
+* **Checkpointing**: Best validation score checkpoint saved to `checkpoints/best_model.pth`.
 
 ---
 
-## 7. Composite Loss Formulation (`losses.py`)
+## 6. Composite Loss Formulation (`losses.py`)
 
 $$\mathcal{L}_{\text{total}} = 1.0 \cdot \mathcal{L}_{\text{Charbonnier}} + 0.5 \cdot \mathcal{L}_{\text{SSIM}} + 0.1 \cdot \mathcal{L}_{\text{FFT}} + 0.2 \cdot \mathcal{L}_{\text{Sobel}}$$
 
@@ -96,22 +78,22 @@ $$\mathcal{L}_{\text{total}} = 1.0 \cdot \mathcal{L}_{\text{Charbonnier}} + 0.5 
 
 ---
 
-## 8. Quantitative Evaluation (`evaluate.py`)
+## 7. Quantitative Evaluation (`evaluate.py`)
 
 Measured across the **200 held-out validation images** (`split_indices.json`):
 
 | Metric | Measured Value | Description |
 | :--- | :--- | :--- |
-| **Validation PSNR** | **23.11 dB** | Peak Signal-to-Noise Ratio |
+| **Validation PSNR** | **23.11 dB** (23.1129 dB) | Peak Signal-to-Noise Ratio |
 | **Validation SSIM** | **0.9269** | Structural Similarity Index |
-| **Mean Absolute Error (MAE)** | **0.04996** | Average pixel-wise error |
-| **Mean Squared Error (MSE)** | **0.006896** | Mean squared error |
-| **Inference Latency (CPU)** | **~221 ms / image** | Low-latency CPU forward pass |
+| **Mean Absolute Error (MAE)** | **0.06573** | Average pixel-wise absolute error |
+| **Mean Squared Error (MSE)** | **0.008821** | Mean squared error |
+| **Inference Latency (CPU)** | **~197 ms / image** | Forward execution latency on CPU |
 | **Signal Bounds** | **$[0.0, 1.0]$** | Zero NaN / Inf violations |
 
 ---
 
-## 9. Web Demo Application
+## 8. Web Demo Application
 
 ![SiliconVision Demo Workbench](docs/demo-screenshot.png)
 
@@ -128,11 +110,11 @@ Measured across the **200 held-out validation images** (`split_indices.json`):
 
 ---
 
-## 10. Installation
+## 9. Installation
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/SiliconVision.git
+git clone https://github.com/Deepshik-V/SiliconVision.git
 cd SiliconVision
 ```
 
@@ -143,7 +125,7 @@ pip install -r requirements.txt
 
 ---
 
-## 11. Running the Backend & Web Demo
+## 10. Running the Backend & Web Demo
 
 Start the unified full-stack application (FastAPI backend + Workbench frontend):
 ```bash
@@ -157,7 +139,7 @@ http://localhost:8000
 
 ---
 
-## 12. Running Standalone CLI Inference
+## 11. Running Standalone CLI Inference
 
 To run batch restoration on unseen test images:
 ```bash
@@ -166,7 +148,7 @@ python inference.py --input_dir "path/to/Test_NoisyLR/NoisyLR" --output_dir "res
 
 ---
 
-## 13. Running Quantitative Evaluation
+## 12. Running Quantitative Evaluation
 
 To benchmark the model on held-out validation pairs:
 ```bash
@@ -175,7 +157,7 @@ python evaluate.py --weights "checkpoints/best_model.pth" --split_manifest "data
 
 ---
 
-## 14. Repository Structure
+## 13. Repository Structure
 
 ```
 SiliconVision/
@@ -227,14 +209,14 @@ SiliconVision/
 
 ---
 
-## 15. Limitations & Boundary Conditions
+## 14. Limitations & Boundary Conditions
 
-* **Fixed Scale Mapping**: The neural network is designed for $128 \times 128 \to 256 \times 256$ ($2\times$ SR). Non-standard input resolutions are validated and flagged with descriptive error responses.
+* **Fixed Scale Mapping**: The neural network is designed for $128 \times 128 \to 256 \times 256$ ($2\times$ SR).
 * **Ground Truth Dependency**: PSNR and SSIM metrics are strictly computed only when a Ground Truth reference image is provided. Metrics are never fabricated for unseen test images.
 
 ---
 
-## 16. Reproducibility & Environment Note
+## 15. Reproducibility & Environment Note
 
 * **Python**: 3.10+
 * **PyTorch**: 2.0+

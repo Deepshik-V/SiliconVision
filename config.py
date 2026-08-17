@@ -58,19 +58,19 @@ class Config:
     # Normalization Strategy
     norm_method: str = "per_image"  # 'per_image', 'robust_percentile', 'zscore', 'global_minmax', 'raw'
 
-    # Fallback paths for local development environment if official dataset resides in Downloads
+    # Portable path resolution checking environment and common user download locations
     def resolve_paths(self):
-        # Check standard default paths
+        user_home = os.path.expanduser("~")
         if not os.path.exists(self.raw_train_lr_dir):
-            dev_lr = r"C:\Users\deeps\Downloads\train\train\NoisyLR"
-            if os.path.exists(dev_lr):
-                self.raw_train_lr_dir = dev_lr
+            fallback_lr = os.path.join(user_home, "Downloads", "train", "train", "NoisyLR")
+            if os.path.exists(fallback_lr):
+                self.raw_train_lr_dir = fallback_lr
         if not os.path.exists(self.raw_train_gt_dir):
-            dev_gt = r"C:\Users\deeps\Downloads\train\train\GT"
-            if os.path.exists(dev_gt):
-                self.raw_train_gt_dir = dev_gt
+            fallback_gt = os.path.join(user_home, "Downloads", "train", "train", "GT")
+            if os.path.exists(fallback_gt):
+                self.raw_train_gt_dir = fallback_gt
         if not os.path.exists(self.raw_test_dir):
-            dev_test = r"C:\Users\deeps\Downloads\Test_NoisyLR\NoisyLR"
-            if os.path.exists(dev_test):
-                self.raw_test_dir = dev_test
+            fallback_test = os.path.join(user_home, "Downloads", "Test_NoisyLR", "NoisyLR")
+            if os.path.exists(fallback_test):
+                self.raw_test_dir = fallback_test
         return self
